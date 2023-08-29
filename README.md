@@ -8,18 +8,17 @@
 
 This code appears to be a part of a larger script or program. It seems to be related to using Google Colab and the ColabFold package, which provides a convenient way to run AlphaFold, a protein structure prediction model. Let's break down the code step by step:
 
-    Display Images Setting:
-
-    python
-
-display_images = True #@param {type:"boolean"}
-
+## 1. Display Images Setting:
 This line creates a boolean variable display_images that can be toggled using Colab's interactive widgets. It will be used to determine whether to display images during the execution of the code.
 
-Importing Modules:
+```{python}
+display_images = True #@param {type:"boolean"}
+```
 
-python
+## 2. Importing Modules:
+This section imports various Python modules and classes required for the rest of the code. It includes modules for handling warnings, working with file paths, downloading AlphaFold parameters, setting up logging, managing batches of protein sequences, and plotting Multiple Sequence Alignments (MSAs).
 
+```{python}
 import sys
 import warnings
 warnings.simplefilter(action='ignore', category=FutureWarning)
@@ -30,16 +29,14 @@ from colabfold.download import download_alphafold_params, default_data_dir
 from colabfold.utils import setup_logging
 from colabfold.batch import get_queries, run, set_model_type
 from colabfold.plot import plot_msa_v2
-
 import os
 import numpy as np
+```
 
-This section imports various Python modules and classes required for the rest of the code. It includes modules for handling warnings, working with file paths, downloading AlphaFold parameters, setting up logging, managing batches of protein sequences, and plotting Multiple Sequence Alignments (MSAs).
+## 3. Checking for GPU Type and Adjusting Environment:
+This section checks if a specific GPU type (Tesla K80) is available. If it's found, it prints a warning and adjusts certain environment variables related to memory management.
 
-Checking for GPU Type and Adjusting Environment:
-
-python
-
+```{python}
 try:
     K80_chk = os.popen('nvidia-smi | grep "Tesla K80" | wc -l').read()
 except:
@@ -48,43 +45,41 @@ except:
 if "1" in K80_chk:
     # ... (code to modify environment variables)
 
-This section checks if a specific GPU type (Tesla K80) is available. If it's found, it prints a warning and adjusts certain environment variables related to memory management.
+```
 
-Additional Imports and Configuration:
+## 4. Additional Imports and Configuration:
+Here, additional functions and classes are imported for protein visualization, working with file paths, and plotting using Matplotlib.
 
-python
-
+```{python}
 from colabfold.colabfold import plot_protein
 from pathlib import Path
 import matplotlib.pyplot as plt
 
-Here, additional functions and classes are imported for protein visualization, working with file paths, and plotting using Matplotlib.
+```
 
-Setting Up PDBFixer Import Path (if condition):
-
-python
-
-if use_amber and f"/usr/local/lib/python{python_version}/site-packages/" not in sys.path:
-    sys.path.insert(0, f"/usr/local/lib/python{python_version}/site-packages/")
-
+## 5. Setting Up PDBFixer Import Path (if condition):
 This part of the code seems to be specific to handling the Amber molecular dynamics package (use_amber) and adjusting the Python path to include the necessary packages.
 
-Input Features Callback Function:
+```{python}
+if use_amber and f"/usr/local/lib/python{python_version}/site-packages/" not in sys.path:
+    sys.path.insert(0, f"/usr/local/lib/python{python_version}/site-packages/")
+```
 
-python
+## 6. Input Features Callback Function:
+This function input_features_callback is responsible for displaying an MSA plot if display_images is set to True.
 
+```{python}
 def input_features_callback(input_features):  
     if display_images:    
         plot_msa_v2(input_features)
         plt.show()
         plt.close()
+```
 
-This function input_features_callback is responsible for displaying an MSA plot if display_images is set to True.
+## 7. Prediction Callback Function:
+This function prediction_callback handles the visualization of predicted protein structures. It uses the plot_protein function to create a plot if display_images is True and the prediction is not relaxed.
 
-Prediction Callback Function:
-
-python
-
+```{python}
 def prediction_callback(protein_obj, length,
                         prediction_result, input_features, mode):
     model_name, relaxed = mode
@@ -93,36 +88,32 @@ def prediction_callback(protein_obj, length,
             fig = plot_protein(protein_obj, Ls=length, dpi=150)
             plt.show()
             plt.close()
+```
 
-This function prediction_callback handles the visualization of predicted protein structures. It uses the plot_protein function to create a plot if display_images is True and the prediction is not relaxed.
+## 8. Processing Uploaded Files:
+This section deals with processing uploaded protein sequences. It reads the uploaded files, processes the sequences, generates a unique job name based on the input file, and prepares a directory to save the results.
 
-Processing Uploaded Files:
-
-python
-
+```{python}
 uploaded_files = files.upload()
 
 for input_filename, uploaded_content in uploaded_files.items():
     # ... (code to process uploaded content and create jobname)
+```
 
-This section deals with processing uploaded protein sequences. It reads the uploaded files, processes the sequences, generates a unique job name based on the input file, and prepares a directory to save the results.
+## 9. Running Protein Structure Predictions:
+This part iterates through the list of job names and runs protein structure predictions using the AlphaFold model. It sets up various parameters for the prediction process.
 
-Running Protein Structure Predictions:
+```{python}
+for jobname in jobname_list:
+    # ... (code to set up prediction parameters and run predictions)
+```
 
-python
+## 10. Packaging and Downloading Results:
+Finally, this section iterates through the job names, packages the prediction results into a ZIP file, and provides options for downloading the ZIP file or uploading it to Google Drive.
 
-    for jobname in jobname_list:
-        # ... (code to set up prediction parameters and run predictions)
-
-    This part iterates through the list of job names and runs protein structure predictions using the AlphaFold model. It sets up various parameters for the prediction process.
-
-    Packaging and Downloading Results:
-
-python
-
+```{python}
 for jobname in jobname_list:
     # ... (code to package results, download results, and optionally upload to Google Drive)
-
-Finally, this section iterates through the job names, packages the prediction results into a ZIP file, and provides options for downloading the ZIP file or uploading it to Google Drive.
+```
 
 Please note that the code assumes the availability of certain modules, functions, and variables that are defined elsewhere. To fully understand how this code fits into the larger context and its intended use, you would need to examine the entire program or script it's a part of.
