@@ -6,6 +6,8 @@
 
 ### This integrated system is meticulously designed to offer a seamless user experience. It not only streamlines the prediction process but also ensures the entire pipeline is automated – from the initial upload of files containing protein sequences to the final step of packaging and saving the prediction results. This comprehensive automation, coupled with interactive widgets and the utilization of the ColabFold package, underscores the script's capability to empower users with efficient and hands-free protein structure prediction and result management.
 
+### If you want to test the code you can do it with either AlphaFold or ColabFold, you just have to make sure to install the dependencies of the latter before executing said code.
+
 Let's break down the code step by step:
 
 ## 1. Display Images Setting:
