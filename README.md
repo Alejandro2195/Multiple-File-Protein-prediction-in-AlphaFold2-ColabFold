@@ -1,5 +1,6 @@
 # Multiple-File-Protein-prediction-in-AlphaFold2-ColabFold
-### View as HTML: https://alejandro2195.github.io/Multiple-File-Protein-prediction-in-AlphaFold2-ColabFold/
+### View explanation as HTML: https://alejandro2195.github.io/Multiple-File-Protein-prediction-in-AlphaFold2-ColabFold/
+### Test code in ColabFold: https://colab.research.google.com/github/Alejandro2195/Multiple-File-Protein-prediction-in-AlphaFold2-ColabFold/blob/main/AlphaFold2%20modified%20code%20for%20multiple%20protein%20prediction.ipynb
 ### The provided code snippet forms a critical component of an automated script aimed at facilitating the prediction of protein structures using the AlphaFold model within a Google Colab environment. The script is tailored to handle the simultaneous upload of multiple input files, each containing multiple protein sequences for prediction. The code initiates by configuring preferences, such as determining whether images should be displayed during execution, and importing essential modules. It performs checks to identify specific GPU types and adapts environment variables accordingly.
 
 ### An array of callback functions is defined, enabling the visualization of multiple sequence alignments and the predicted protein structures. As the script progresses, it processes the uploaded protein sequences from multiple files, generating unique job names and establishing directories to store the forthcoming results. In a systematic loop, the script iterates through these designated job names. For each job, it configures prediction parameters and invokes the AlphaFold model to predict protein structures for the corresponding sequences.
@@ -118,4 +119,4 @@ for jobname in jobname_list:
     # ... (code to package results, download results, and optionally upload to Google Drive)
 ```
 
-Please note that the code assumes the availability of certain modules, functions, and variables that are defined elsewhere. To fully understand how this code fits into the larger context and its intended use, you would need to examine the entire program or script it's a part of.
+Please note that the code assumes the availability of certain modules. To fully understand how this code fits into the larger context and its intended use, you would need to examine the entire program or script it's a part of.
