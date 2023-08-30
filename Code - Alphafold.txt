@@ -29,12 +29,78 @@ from colabfold.colabfold import plot_protein
 from pathlib import Path
 import matplotlib.pyplot as plt
 
+#############
+#@title Input protein sequence(s), then hit `Runtime` -> `Run all`
+from google.colab import files
+import os
+import re
+import hashlib
+import random
+
+from sys import version_info
+python_version = f"{version_info.major}.{version_info.minor}"
+
+def add_hash(x,y):
+  return x+"_"+hashlib.sha1(y.encode()).hexdigest()[:5]
+
+query_sequence = 'PIAQIHILEGRSDEQKETLIREVSEAISRSLDAPLTSVRVIITEMAKGHFGIGGELASK' #@param {type:"string"}
+#@markdown  - Use `:` to specify inter-protein chainbreaks for **modeling complexes** (supports homo- and hetro-oligomers). For example **PI...SK:PI...SK** for a homodimer
+jobname = 'test' #@param {type:"string"}
+# number of models to use
+num_relax = 0 #@param [0, 1, 5] {type:"raw"}
+#@markdown - specify how many of the top ranked structures to relax using amber
+template_mode = "none" #@param ["none", "pdb70","custom"]
+#@markdown - `none` = no template information is used. `pdb70` = detect templates in pdb70. `custom` - upload and search own templates (PDB or mmCIF format, see [notes below](#custom_templates))
+
+use_amber = num_relax > 0
+
+# remove whitespaces
+query_sequence = "".join(query_sequence.split())
+
+basejobname = "".join(jobname.split())
+basejobname = re.sub(r'\W+', '', basejobname)
+jobname = add_hash(basejobname, query_sequence)
+
+# check if directory with jobname exists
+def check(folder):
+  if os.path.exists(folder):
+    return False
+  else:
+    return True
+if not check(jobname):
+  n = 0
+  while not check(f"{jobname}_{n}"): n += 1
+  jobname = f"{jobname}_{n}"
+
+# make directory to save results
+os.makedirs(jobname, exist_ok=True)
+
+# save queries
+queries_path = os.path.join(jobname, f"{jobname}.csv")
+with open(queries_path, "w") as text_file:
+  text_file.write(f"id,sequence\n{jobname},{query_sequence}")
+
+if template_mode == "pdb70":
+  use_templates = True
+  custom_template_path = None
+elif template_mode == "custom":
+  custom_template_path = os.path.join(jobname,f"template")
+  os.makedirs(custom_template_path, exist_ok=True)
+  uploaded = files.upload()
+  use_templates = True
+  for fn in uploaded.keys():
+    os.rename(fn,os.path.join(custom_template_path,fn))
+else:
+  custom_template_path = None
+  use_templates = False
+##########
+
 # For some reason we need that to get pdbfixer to import
 if use_amber and f"/usr/local/lib/python{python_version}/site-packages/" not in sys.path:
     sys.path.insert(0, f"/usr/local/lib/python{python_version}/site-packages/")
 
-def input_features_callback(input_features):  
-  if display_images:    
+def input_features_callback(input_features):
+  if display_images:
     plot_msa_v2(input_features)
     plt.show()
     plt.close()
@@ -50,16 +116,14 @@ def prediction_callback(protein_obj, length,
 
 # List of all generated jobnames
 jobname_list = []
-
-# Bucle para procesar los resultados para cada jobname
-for input_filename, uploaded_content in uploaded_files.items():
-    from google.colab import files
+##################################################################
+from google.colab import files
 import os
 import re
 import hashlib
 import random
 
-from sys import version_info 
+from sys import version_info
 python_version = f"{version_info.major}.{version_info.minor}"
 
 def add_hash(x, y):
@@ -94,7 +158,7 @@ for input_filename, uploaded_content in uploaded_files.items():
     # Check and modify jobname if necessary
     def check(folder):
         return not os.path.exists(folder)
-    
+
     if not check(jobname):
         n = 0
         while not check(f"{jobname}_{n}"):
@@ -116,13 +180,86 @@ for input_filename, uploaded_content in uploaded_files.items():
     print("Num_sequences:", len(sequences))
     print("=" * 40)
 
-    
+
     jobname_list.append(jobname)
+#@markdown ### MSA options (custom MSA upload, single sequence, pairing mode)
+msa_mode = "mmseqs2_uniref_env" #@param ["mmseqs2_uniref_env", "mmseqs2_uniref","single_sequence","custom"]
+pair_mode = "unpaired_paired" #@param ["unpaired_paired","paired","unpaired"] {type:"string"}
+#@markdown - "unpaired_paired" = pair sequences from same species + unpaired MSA, "unpaired" = seperate MSA for each chain, "paired" - only use paired sequences.
+
+# decide which a3m to use
+if "mmseqs2" in msa_mode:
+  a3m_file = os.path.join(jobname,f"{jobname}.a3m")
+
+elif msa_mode == "custom":
+  a3m_file = os.path.join(jobname,f"{jobname}.custom.a3m")
+  if not os.path.isfile(a3m_file):
+    custom_msa_dict = files.upload()
+    custom_msa = list(custom_msa_dict.keys())[0]
+    header = 0
+    import fileinput
+    for line in fileinput.FileInput(custom_msa,inplace=1):
+      if line.startswith(">"):
+         header = header + 1
+      if not line.rstrip():
+        continue
+      if line.startswith(">") == False and header == 1:
+         query_sequence = line.rstrip()
+      print(line, end='')
+
+    os.rename(custom_msa, a3m_file)
+    queries_path=a3m_file
+    print(f"moving {custom_msa} to {a3m_file}")
+
+else:
+  a3m_file = os.path.join(jobname,f"{jobname}.single_sequence.a3m")
+  with open(a3m_file, "w") as text_file:
+    text_file.write(">1\n%s" % query_sequence)
+
+#@markdown ### Advanced settings
+model_type = "auto" #@param ["auto", "alphafold2_ptm", "alphafold2_multimer_v1", "alphafold2_multimer_v2", "alphafold2_multimer_v3"]
+#@markdown - if `auto` selected, will use `alphafold2_ptm` for monomer prediction and `alphafold2_multimer_v3` for complex prediction.
+#@markdown Any of the mode_types can be used (regardless if input is monomer or complex).
+num_recycles = "auto" #@param ["auto", "0", "1", "3", "6", "12", "24", "48"]
+recycle_early_stop_tolerance = "auto" #@param ["auto", "0.0", "0.5", "1.0"]
+#@markdown - if `auto` selected, will use 20 recycles if `model_type=alphafold2_multimer_v3` (with tol=0.5), all else 3 recycles (with tol=0.0).
+
+#@markdown #### Sample settings
+#@markdown -  enable dropouts and increase number of seeds to sample predictions from uncertainty of the model.
+#@markdown -  decrease `max_msa` to increase uncertainity
+max_msa = "auto" #@param ["auto", "512:1024", "256:512", "64:128", "32:64", "16:32"]
+num_seeds = 1 #@param [1,2,4,8,16] {type:"raw"}
+use_dropout = False #@param {type:"boolean"}
+
+num_recycles = None if num_recycles == "auto" else int(num_recycles)
+recycle_early_stop_tolerance = None if recycle_early_stop_tolerance == "auto" else float(recycle_early_stop_tolerance)
+if max_msa == "auto": max_msa = None
+
+#@markdown #### Save settings
+save_all = False #@param {type:"boolean"}
+save_recycles = False #@param {type:"boolean"}
+save_to_google_drive = False #@param {type:"boolean"}
+#@markdown -  if the save_to_google_drive option was selected, the result zip will be uploaded to your Google Drive
+dpi = 200 #@param {type:"integer"}
+#@markdown - set dpi for image resolution
+
+if save_to_google_drive:
+  from pydrive.drive import GoogleDrive
+  from pydrive.auth import GoogleAuth
+  from google.colab import auth
+  from oauth2client.client import GoogleCredentials
+  auth.authenticate_user()
+  gauth = GoogleAuth()
+  gauth.credentials = GoogleCredentials.get_application_default()
+  drive = GoogleDrive(gauth)
+  print("You are logged into Google Drive and are good to go!")
+
+#@markdown Don't forget to hit `Runtime` -> `Run all` after updating the form.
 
 # Bucle para iterar a través de los jobname y realizar predicciones
 for jobname in jobname_list:
     result_dir = jobname
-    
+
     if 'logging_setup' not in globals():
         setup_logging(Path(os.path.join(jobname,"log.txt")))
         logging_setup = True
@@ -142,7 +279,7 @@ for jobname in jobname_list:
         use_templates=use_templates,
         custom_template_path=custom_template_path,
         num_relax=num_relax,
-        msa_mode=msa_mode,    
+        msa_mode=msa_mode,
         model_type=model_type,
         num_models=1,
         num_recycles=num_recycles,
