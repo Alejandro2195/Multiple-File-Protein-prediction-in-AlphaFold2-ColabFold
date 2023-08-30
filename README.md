@@ -6,7 +6,7 @@
 
 ### This integrated system is meticulously designed to offer a seamless user experience. It not only streamlines the prediction process but also ensures the entire pipeline is automated – from the initial upload of files containing protein sequences to the final step of packaging and saving the prediction results. This comprehensive automation, coupled with interactive widgets and the utilization of the ColabFold package, underscores the script's capability to empower users with efficient and hands-free protein structure prediction and result management.
 
-This code appears to be a part of a larger script or program. It seems to be related to using Google Colab and the ColabFold package, which provides a convenient way to run AlphaFold, a protein structure prediction model. Let's break down the code step by step:
+Let's break down the code step by step:
 
 ## 1. Display Images Setting:
 This line creates a boolean variable display_images that can be toggled using Colab's interactive widgets. It will be used to determine whether to display images during the execution of the code.
