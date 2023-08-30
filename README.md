@@ -9,6 +9,8 @@
 
 ### If you want to test the code you can do it with either AlphaFold or ColabFold, you just have to make sure to install the dependencies of the latter before executing said code.
 
+
+The code is quite complex and is used to manage the process of running AlphaFold predictions on protein sequences, handling various configurations, and saving the results. It involves managing input data, template options, MSA modes, and other advanced settings to customize the predictions.
 Let's break down the code step by step:
 
 ## 1. Display Images Setting:
