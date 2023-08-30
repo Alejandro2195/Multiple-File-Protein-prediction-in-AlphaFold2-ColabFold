@@ -24,16 +24,9 @@ This section imports various Python modules and classes required for the rest of
 ```{python}
 import sys
 import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
-from Bio import BiopythonDeprecationWarning
-warnings.simplefilter(action='ignore', category=BiopythonDeprecationWarning)
-from pathlib import Path
-from colabfold.download import download_alphafold_params, default_data_dir
-from colabfold.utils import setup_logging
-from colabfold.batch import get_queries, run, set_model_type
-from colabfold.plot import plot_msa_v2
-import os
-import numpy as np
+...
+import matplotlib.pyplot as plt
+
 ```
 
 ## 3. Checking for GPU Type and Adjusting Environment:
@@ -60,6 +53,19 @@ import matplotlib.pyplot as plt
 
 ```
 
+##5. User Input Section:
+Here, the user is prompted to provide input. They need to input a protein sequence, a job name, a number of models to use for relaxation, and a template mode. The parameters are adjusted using annotations (@param). Remember that the query_sequence is not important as a parameter, since the user will then be prompted to upload their sequence files.
+
+```{python}
+query_sequence = 'PIAQIHILEGRSDEQKETLIREVSEAISRSLDAPLTSVRVIITEMAKGHFGIGGELASK' #@param {type:"string"}
+jobname = 'test' #@param {type:"string"}
+num_relax = 0 #@param [0, 1, 5] {type:"raw"}
+template_mode = "none" #@param ["none", "pdb70","custom"]
+...
+
+```
+
+
 ## 5. Setting Up PDBFixer Import Path (if condition):
 This part of the code seems to be specific to handling the Amber molecular dynamics package (use_amber) and adjusting the Python path to include the necessary packages.
 
@@ -68,55 +74,107 @@ if use_amber and f"/usr/local/lib/python{python_version}/site-packages/" not in 
     sys.path.insert(0, f"/usr/local/lib/python{python_version}/site-packages/")
 ```
 
-## 6. Input Features Callback Function:
-This function input_features_callback is responsible for displaying an MSA plot if display_images is set to True.
+## 6. Preprocessing Input:
+The input protein sequence is cleaned of whitespace characters. The job name is cleaned up and hashed with the sequence to create a unique identifier for the job.
 
 ```{python}
-def input_features_callback(input_features):  
-    if display_images:    
-        plot_msa_v2(input_features)
-        plt.show()
-        plt.close()
+query_sequence = "".join(query_sequence.split())
+basejobname = "".join(jobname.split())
+basejobname = re.sub(r'\W+', '', basejobname)
+jobname = add_hash(basejobname, query_sequence)
+
 ```
 
-## 7. Prediction Callback Function:
-This function prediction_callback handles the visualization of predicted protein structures. It uses the plot_protein function to create a plot if display_images is True and the prediction is not relaxed.
+## 7. Creating and Managing Directories:
+A directory is created with the job name to save results. If a directory with the same name already exists, a new name with an appended number is generated to avoid overwriting existing data.
 
 ```{python}
-def prediction_callback(protein_obj, length,
-                        prediction_result, input_features, mode):
-    model_name, relaxed = mode
-    if not relaxed:
-        if display_images:
-            fig = plot_protein(protein_obj, Ls=length, dpi=150)
-            plt.show()
-            plt.close()
+if not check(jobname):
+    n = 0
+    while not check(f"{jobname}_{n}"): n += 1
+    jobname = f"{jobname}_{n}"
+os.makedirs(jobname, exist_ok=True)
+
 ```
 
-## 8. Processing Uploaded Files:
-This section deals with processing uploaded protein sequences. It reads the uploaded files, processes the sequences, generates a unique job name based on the input file, and prepares a directory to save the results.
+## 8. Saving Query Sequences:
+The protein sequence is saved to a CSV file within the job directory.
 
 ```{python}
-uploaded_files = files.upload()
+queries_path = os.path.join(jobname, f"{jobname}.csv")
+with open(queries_path, "w") as text_file:
+    text_file.write(f"id,sequence\n{jobname},{query_sequence}")
 
-for input_filename, uploaded_content in uploaded_files.items():
-    # ... (code to process uploaded content and create jobname)
 ```
 
-## 9. Running Protein Structure Predictions:
-This part iterates through the list of job names and runs protein structure predictions using the AlphaFold model. It sets up various parameters for the prediction process.
+## 9. Template Handling:
+Depending on the chosen template mode, template paths are managed accordingly. Templates provide structural information for modeling.
+
+```{python}
+if template_mode == "pdb70":
+    use_templates = True
+    ...
+elif template_mode == "custom":
+    custom_template_path = os.path.join(jobname,f"template")
+    ...
+else:
+    custom_template_path = None
+    use_templates = False
+
+```
+
+## 10. MSA (Multiple Sequence Alignment) Handling:
+This section determines the path to the multiple sequence alignment (a3m) file based on the chosen MSA mode.
+
+```{python}
+...
+if "mmseqs2" in msa_mode:
+    a3m_file = os.path.join(jobname,f"{jobname}.a3m")
+elif msa_mode == "custom":
+    a3m_file = os.path.join(jobname,f"{jobname}.custom.a3m")
+    ...
+else:
+    a3m_file = os.path.join(jobname,f"{jobname}.single_sequence.a3m")
+
+```
+
+## 11. Advanced Settings:
+Advanced settings related to the AlphaFold model are provided, including the model type, number of recycles, dropout usage, and more.
+
+```{python}
+model_type = "auto" #@param ["auto", "alphafold2_ptm", ...]
+...
+save_recycles = False #@param {type:"boolean"}
+dpi = 200 #@param {type:"integer"}
+
+```
+
+## 12. Loop for Running Predictions:
+This loop iterates through the job names and runs the AlphaFold prediction process for each job. The results are then compressed into a ZIP file.
 
 ```{python}
 for jobname in jobname_list:
-    # ... (code to set up prediction parameters and run predictions)
+    ...
+    results = run(
+        queries=queries,
+        ...
+    )
+    results_zip = f"{jobname}.result.zip"
+    os.system(f"zip -r {results_zip} {jobname}")
+
 ```
 
-## 10. Packaging and Downloading Results:
-Finally, this section iterates through the job names, packages the prediction results into a ZIP file, and provides options for downloading the ZIP file or uploading it to Google Drive.
+## 13. Packaging and Downloading Results:
+After the predictions are completed, the results are packaged into a ZIP file and then downloaded. If enabled, the results are also uploaded to Google Drive.
 
 ```{python}
+...
 for jobname in jobname_list:
-    # ... (code to package results, download results, and optionally upload to Google Drive)
+    ...
+    result_zip = f"{jobname}.result.zip"
+    os.system(f"zip -r {result_zip} {jobname}")
+    files.download(result_zip)
+
 ```
 
-Please note that the code assumes the availability of certain modules. To fully understand how this code fits into the larger context and its intended use, you would need to examine the entire program or script it's a part of.
+Please note that the code assumes the availability of certain modules. To fully understand how this code fits into the larger context and its intended use, you would need to examine the entire program or script it's a part of. If you want to test the code with your data, you can do so via the modified ColabFold link provided at the beginning of the document.
